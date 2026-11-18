@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reflux Tracker</title>
+<meta name="theme-color" content="#221b16">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #221b16; --surface: #2e2620; --surface2: #3a3029; --line: #4a3e34;
+    --text: #f0e8db; --muted: #a89a88; --clay: #d97757; --green: #8fae7e; --on-accent: #221b16;
+    --sev1: #c9b27c; --sev2: #d98c57; --sev3: #d0614a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: max(12px, env(safe-area-inset-top)) 16px 40px;
+  }
+  main { max-width: 560px; margin: 0 auto; }
+  h1, h2 { font-family: "Tiempos Headline", Georgia, "Times New Roman", serif; font-weight: 500; }
+  h1 { font-size: 24px; margin: 4px 0 12px; }
+  h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-family: inherit; font-weight: 600; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  .tabs { display: flex; background: var(--surface2); border-radius: 12px; padding: 4px; margin-bottom: 14px; }
+  .tabs button { flex: 1; min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 600; }
+  .tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+
+  .daynav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .daynav button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-size: 20px; }
+  .daynav button:disabled { opacity: .3; }
+  .daynav .label { text-align: center; }
+  .daynav .label b { display: block; font-family: Georgia, serif; font-weight: 500; font-size: 20px; }
+  .daynav .label span { color: var(--muted); font-size: 13px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+
+  .symgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .symbtn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 2px 9px; min-height: 118px;
+            border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--muted); }
+  .symbtn .sl { font-size: 11.5px; line-height: 1.2; text-align: center; color: var(--text); min-height: 28px;
+                display: flex; align-items: center; }
+  .symbtn .sv { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .dots { display: flex; gap: 3px; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+  .dots i.f { background: currentColor; }
+  .symbtn.l1 { border-color: var(--sev1); color: var(--sev1); background: color-mix(in srgb, var(--sev1) 14%, transparent); }
+  .symbtn.l2 { border-color: var(--sev2); color: var(--sev2); background: color-mix(in srgb, var(--sev2) 20%, transparent); }
+  .symbtn.l3 { border-color: var(--sev3); color: var(--sev3); background: color-mix(in srgb, var(--sev3) 30%, transparent); border-width: 2px; }
+  .ic { display: block; flex: none; }
+  th .ic { margin: 0 auto; }
+  .legend .ic { display: inline-block; vertical-align: -3px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+  .tile { position: relative; min-height: 64px; border-radius: 12px; border: 1px solid var(--line); background: transparent;
+          display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px; font-weight: 600; }
+  .tile small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .tile.on { background: color-mix(in srgb, var(--green) 20%, transparent); border-color: var(--green); color: var(--green); }
+  .tile.on small { color: var(--green); }
+  .tile.dose.on { background: color-mix(in srgb, var(--clay) 18%, transparent); border-color: var(--clay); color: var(--clay); }
+  .tile.dose.on small { color: var(--clay); }
+  .minus { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid currentColor;
+           background: var(--surface); line-height: 1; font-size: 18px; }
+  .total { margin-top: 10px; font-size: 14px; color: var(--muted); text-align: right; }
+
+  .savebar { position: sticky; bottom: 12px; margin-top: 4px; }
+  .primary { width: 100%; min-height: 52px; border: 0; border-radius: 14px; font-size: 17px; font-weight: 600;
+             background: var(--green); color: var(--on-accent); box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  .saved { text-align: center; color: var(--green); font-size: 14px; padding: 10px 0; }
+
+  .tablewrap { overflow-x: auto; margin: 0 -14px; padding: 0 14px; }
+  table { border-collapse: collapse; font-size: 13px; width: 100%; }
+  th, td { padding: 6px 2px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; position: sticky; top: 0; background: var(--surface); }
+  td:first-child, th:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); }
+  tr.day { cursor: pointer; }
+  tr.missing td { color: var(--muted); font-style: italic; }
+  .s { display: inline-block; width: 22px; height: 22px; line-height: 22px; border-radius: 6px; font-weight: 700; font-size: 12px; }
+  .s0 { color: var(--muted); }
+  .s1 { background: color-mix(in srgb, var(--sev1) 30%, transparent); color: var(--sev1); }
+  .s2 { background: color-mix(in srgb, var(--sev2) 35%, transparent); color: var(--sev2); }
+  .s3 { background: var(--sev3); color: var(--on-accent); }
+  .yes { color: var(--green); font-weight: 700; }
+  .legend { color: var(--muted); font-size: 12px; margin-top: 10px; line-height: 1.6; }
+
+  .trig { display: grid; grid-template-columns: 1fr auto auto auto; gap: 4px 10px; font-size: 14px; align-items: center; }
+  .trig .h { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .trig .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .up { color: var(--sev3); font-weight: 700; }
+  .down { color: var(--green); font-weight: 700; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .row { display: flex; gap: 8px; }
+  .row button { flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: transparent; }
+  .status { text-align: center; color: var(--muted); font-size: 13px; min-height: 18px; margin-top: 8px; }
+  select { font: inherit; color: var(--text); background: var(--surface2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Reflux Tracker</h1>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-view="today" aria-selected="true">Daily log</button>
+    <button role="tab" data-view="analytics" aria-selected="false">Analytics</button>
+  </div>
+
+  <section id="view-today">
+    <div class="daynav">
+      <button id="prev" aria-label="Previous day">‹</button>
+      <div class="label"><b id="dayTitle"></b><span id="daySub"></span></div>
+      <button id="next" aria-label="Next day">›</button>
+    </div>
+    <div class="card"><h2>Symptoms</h2><div class="symgrid" id="symptoms"></div></div>
+    <div class="card"><h2>Caffeine</h2><div class="grid" id="caffeine"></div><div class="total" id="caffTotal"></div></div>
+    <div class="card"><h2>Food</h2><div class="grid" id="foods"></div></div>
+    <div class="card"><h2>Medication</h2><div class="grid" id="meds"></div></div>
+    <div class="savebar">
+      <button class="primary" id="logClean" hidden>Nothing else to report: log day</button>
+      <div class="saved" id="savedMsg" hidden></div>
+    </div>
+  </section>
+
+  <section id="view-analytics" hidden>
+    <div class="card">
+      <h2>Days</h2>
+      <div class="tablewrap"><table id="table"></table></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="card">
+      <h2>Possible triggers</h2>
+      <div style="margin-bottom:10px; font-size:14px;">
+        Outcome:
+        <select id="outcome"></select>
+      </div>
+      <div class="trig" id="triggers"></div>
+      <div class="note">
+        Average outcome on days with vs. without each factor; (n) is the day count.
+        ⚑ marks a difference of ≥0.5 once both sides have ≥4 days. Correlation only. Medication will look "bad" because you take it on bad days.
+      </div>
+    </div>
+    <div class="card">
+      <h2>Backup</h2>
+      <div class="row">
+        <button id="export">Export CSV</button>
+        <button id="import">Import CSV</button>
+      </div>
+      <input type="file" id="importFile" accept=".csv,text/csv" hidden>
+      <div class="status" id="backupStatus"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+// Inline line icons (24px grid) so the app needs no network.
+const ICONS = {
+  sunrise: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  wave: '<path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"/>',
+  droplet: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+  wind: '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+  coffee: '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M6 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/>',
+  leaf: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
+  chili: '<path d="M19 8c-1 7-7 12-14 11-1-.2-1-1.5 0-1.8C10 15.5 13 11 14 7"/><path d="M14 7c1.5-1 3.5-1 5 1"/><path d="M17 7.5c0-2 1-3.5 3-4"/>',
+  fries: '<path d="M5.5 10 7 21h10l1.5-11z"/><path d="M8 10V4"/><path d="M11 10V3"/><path d="M14 10V4"/><path d="M17 10V6"/>',
+  capsule: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/>',
+  tablet: '<circle cx="12" cy="12" r="9"/><path d="M5.6 18.4 18.4 5.6"/>',
+  raft: '<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
+};
+const icon = (name, size = 22) =>
+  `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
+const SYMPTOMS = [
+  { id: "morning", label: "Morning acid / dry mouth", tile: "Morning acid", icon: "sunrise" },
+  { id: "heartburn", label: "Heartburn", tile: "Heartburn", icon: "flame" },
+  { id: "throat", label: "Throat clearing", tile: "Throat clearing", icon: "wave" },
+  { id: "pnd", label: "Post-nasal drip", tile: "Post-nasal drip", icon: "droplet" },
+  { id: "stuffy", label: "Stuffy nose", tile: "Stuffy nose", icon: "wind" },
+];
+const SEVERITY = ["none", "mild", "medium", "severe"];
+const CAFFEINE = [
+  { id: "coffee", label: "Coffee", mg: 80, icon: "coffee" },
+  { id: "tea", label: "Tea", mg: 50, icon: "leaf" },
+];
+const FOODS = [
+  { id: "spicy", label: "Spicy food", icon: "chili" },
+  { id: "fried", label: "Fried food", icon: "fries" },
+];
+const MEDS = [
+  { id: "ppi", label: "PPI", icon: "capsule" },
+  { id: "h2", label: "H2 blocker", icon: "tablet" },
+  { id: "raft", label: "Raft", icon: "raft" },
+];
+// Entries made before this hour count toward the previous day.
+const DAY_ROLLOVER_HOUR = 4;
+const STORE_KEY = "lpr-log-v1";
+const FIELDS = [...SYMPTOMS, ...CAFFEINE, ...FOODS, ...MEDS].map((f) => f.id);
+
+// ---------- dates ----------
+const pad = (n) => String(n).padStart(2, "0");
+const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return fmt(d); };
+function logicalToday() {
+  const d = new Date();
+  if (d.getHours() < DAY_ROLLOVER_HOUR) d.setDate(d.getDate() - 1);
+  return fmt(d);
+}
+
+// ---------- storage ----------
+function loadAll() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
+}
+function saveAll(all) { localStorage.setItem(STORE_KEY, JSON.stringify(all)); }
+function blank() { return Object.fromEntries(FIELDS.map((f) => [f, 0])); }
+const caffMg = (e) => CAFFEINE.reduce((s, c) => s + (e[c.id] || 0) * c.mg, 0);
+const symptomTotal = (e) => SYMPTOMS.reduce((s, x) => s + (e[x.id] || 0), 0);
+
+// ---------- daily log ----------
+let current = logicalToday();
+let draft = blank();
+
+function persist() {
+  const all = loadAll();
+  all[current] = { ...draft, saved_at: new Date().toISOString() };
+  saveAll(all);
+  renderSaved();
+}
+
+function loadDay(date) {
+  current = date;
+  const existing = loadAll()[date];
+  draft = { ...blank(), ...(existing || {}) };
+  delete draft.saved_at;
+  renderToday();
+}
+
+function renderSaved() {
+  const entry = loadAll()[current];
+  const clean = document.getElementById("logClean");
+  const msg = document.getElementById("savedMsg");
+  clean.hidden = !!entry;
+  msg.hidden = !entry;
+  if (entry) {
+    const t = new Date(entry.saved_at);
+    msg.textContent = `✓ Saved automatically · ${t.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${pad(t.getHours())}:${pad(t.getMinutes())}`;
+  }
+}
+
+function tile(ic, label, sub, on, cls, onTap, onMinus) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = `tile ${cls} ${on ? "on" : ""}`;
+  b.innerHTML = `${icon(ic)}<span>${label}</span><small>${sub}</small>`;
+  b.addEventListener("click", onTap);
+  if (onMinus) {
+    const m = document.createElement("span");
+    m.className = "minus";
+    m.setAttribute("role", "button");
+    m.setAttribute("aria-label", `Remove one ${label}`);
+    m.textContent = "−";
+    m.style.display = "flex"; m.style.alignItems = "center"; m.style.justifyContent = "center";
+    m.addEventListener("click", (ev) => { ev.stopPropagation(); onMinus(); });
+    b.appendChild(m);
+  }
+  return b;
+}
+
+function renderToday() {
+  const today = logicalToday();
+  const d = parse(current);
+  const diff = Math.round((parse(today) - d) / 86400000);
+  document.getElementById("dayTitle").textContent =
+    diff === 0 ? "Today" : diff === 1 ? "Yesterday" : d.toLocaleDateString(undefined, { weekday: "long" });
+  document.getElementById("daySub").textContent = d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  document.getElementById("next").disabled = current >= today;
+
+  const sym = document.getElementById("symptoms");
+  sym.innerHTML = "";
+  for (const s of SYMPTOMS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    const lvl = draft[s.id];
+    b.className = `symbtn l${lvl}`;
+    b.setAttribute("aria-label", `${s.label}: ${SEVERITY[lvl]}`);
+    b.innerHTML = `${icon(s.icon, 26)}<span class="sl">${s.tile}</span>`
+      + `<span class="dots">${[1, 2, 3].map((i) => `<i class="${lvl >= i ? "f" : ""}"></i>`).join("")}</span>`
+      + `<span class="sv">${SEVERITY[lvl]}</span>`;
+    b.addEventListener("click", () => { draft[s.id] = (draft[s.id] + 1) % SEVERITY.length; persist(); renderToday(); });
+    sym.appendChild(b);
+  }
+
+  const caf = document.getElementById("caffeine");
+  caf.innerHTML = "";
+  for (const c of CAFFEINE) {
+    const n = draft[c.id];
+    caf.appendChild(tile(
+      c.icon,
+      n ? `${c.label} ×${n}` : c.label,
+      n ? `${n * c.mg} mg` : `tap to add · ${c.mg} mg`,
+      n > 0, "dose",
+      () => { draft[c.id] += 1; persist(); renderToday(); },
+      n > 0 ? () => { draft[c.id] -= 1; persist(); renderToday(); } : null,
+    ));
+  }
+  document.getElementById("caffTotal").textContent = `Total caffeine: ${caffMg(draft)} mg`;
+
+  for (const [group, elId] of [[FOODS, "foods"], [MEDS, "meds"]]) {
+    const el = document.getElementById(elId);
+    el.innerHTML = "";
+    for (const f of group) {
+      el.appendChild(tile(f.icon, f.label, draft[f.id] ? "yes" : "no", !!draft[f.id], "",
+        () => { draft[f.id] = draft[f.id] ? 0 : 1; persist(); renderToday(); }));
+    }
+  }
+  renderSaved();
+}
+
+document.getElementById("prev").addEventListener("click", () => loadDay(addDays(current, -1)));
+document.getElementById("next").addEventListener("click", () => loadDay(addDays(current, 1)));
+document.getElementById("logClean").addEventListener("click", persist);
+
+// ---------- analytics ----------
+const OUTCOMES = [
+  { id: "total", label: "Total symptoms, same day", lag: 0, f: symptomTotal },
+  { id: "total_next", label: "Total symptoms, next day", lag: 1, f: symptomTotal },
+  { id: "morning_next", label: "Morning acid, next morning", lag: 1, f: (e) => e.morning },
+  ...SYMPTOMS.map((s) => ({ id: s.id, label: `${s.label}, same day`, lag: 0, f: (e) => e[s.id] })),
+];
+const FACTORS = [
+  { label: "Any caffeine", f: (e) => caffMg(e) > 0 },
+  { label: "Caffeine ≥ 160 mg", f: (e) => caffMg(e) >= 160 },
+  ...CAFFEINE.map((c) => ({ label: c.label, icon: c.icon, f: (e) => e[c.id] > 0 })),
+  ...FOODS.map((x) => ({ label: x.label, icon: x.icon, f: (e) => !!e[x.id] })),
+  ...MEDS.map((x) => ({ label: x.label, icon: x.icon, f: (e) => !!e[x.id] })),
+];
+const MIN_N = 4;
+
+function renderTable() {
+  const all = loadAll();
+  const dates = Object.keys(all).sort();
+  const table = document.getElementById("table");
+  const cols = [
+    ...SYMPTOMS.map((s) => `<th title="${s.label}">${icon(s.icon, 16)}</th>`),
+    `<th title="Symptom total">Σ</th>`, `<th title="Caffeine">mg</th>`,
+    ...[...FOODS, ...MEDS].map((x) => `<th title="${x.label}">${icon(x.icon, 16)}</th>`),
+  ];
+  let html = `<tr><th>Date</th>${cols.join("")}</tr>`;
+  if (!dates.length) {
+    html += `<tr><td colspan="${cols.length + 1}" style="text-align:center;color:var(--muted)">No entries yet</td></tr>`;
+  } else {
+    for (let d = logicalToday(); d >= dates[0]; d = addDays(d, -1)) {
+      const pd = parse(d);
+      const label = `${pd.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2)} ${pd.getMonth() + 1}/${pd.getDate()}`;
+      const e = all[d];
+      if (!e) { html += `<tr class="day missing" data-date="${d}"><td>${label}</td><td colspan="${cols.length}">not logged</td></tr>`; continue; }
+      html += `<tr class="day" data-date="${d}"><td>${label}</td>`
+        + SYMPTOMS.map((s) => `<td><span class="s s${e[s.id]}">${e[s.id] || "·"}</span></td>`).join("")
+        + `<td>${symptomTotal(e)}</td><td>${caffMg(e) || "·"}</td>`
+        + [...FOODS, ...MEDS].map((x) => `<td>${e[x.id] ? '<span class="yes">✓</span>' : "·"}</td>`).join("")
+        + "</tr>";
+    }
+  }
+  table.innerHTML = html;
+  table.querySelectorAll("tr.day").forEach((tr) => tr.addEventListener("click", () => { loadDay(tr.dataset.date); show("today"); }));
+  document.getElementById("legend").innerHTML =
+    [...SYMPTOMS, ...FOODS, ...MEDS].map((x) => `${icon(x.icon, 14)} ${x.label}`).join(" · ")
+    + " · <b>Σ</b> symptom total (0–15) · <b>mg</b> caffeine<br>Severity 1 mild, 2 medium, 3 severe. Tap a row to edit that day.";
+}
+
+function renderTriggers() {
+  const all = loadAll();
+  const outcome = OUTCOMES.find((o) => o.id === document.getElementById("outcome").value) || OUTCOMES[0];
+  const el = document.getElementById("triggers");
+  let html = `<span class="h">Factor</span><span class="h num">With</span><span class="h num">Without</span><span class="h num">Δ</span>`;
+  for (const fac of FACTORS) {
+    const yes = [], no = [];
+    for (const [d, e] of Object.entries(all)) {
+      const target = all[addDays(d, outcome.lag)];
+      if (!target) continue;
+      (fac.f(e) ? yes : no).push(outcome.f(target));
+    }
+    const avg = (a) => a.reduce((s, x) => s + x, 0) / a.length;
+    const enough = yes.length >= MIN_N && no.length >= MIN_N;
+    const cell = (a) => a.length ? `${avg(a).toFixed(1)} <small style="color:var(--muted)">(${a.length})</small>` : "–";
+    let delta = "–";
+    if (yes.length && no.length) {
+      const dv = avg(yes) - avg(no);
+      const cls = !enough ? "" : dv >= 0.5 ? "up" : dv <= -0.5 ? "down" : "";
+      delta = `<span class="${cls}">${dv > 0 ? "+" : ""}${dv.toFixed(1)}${enough && cls ? " ⚑" : ""}</span>`;
+    }
+    html += `<span style="display:flex;gap:6px;align-items:center">${fac.icon ? icon(fac.icon, 16) : ""}${fac.label}</span><span class="num">${cell(yes)}</span><span class="num">${cell(no)}</span><span class="num">${delta}</span>`;
+  }
+  el.innerHTML = html;
+}
+
+const outcomeSel = document.getElementById("outcome");
+outcomeSel.innerHTML = OUTCOMES.map((o) => `<option value="${o.id}">${o.label}</option>`).join("");
+outcomeSel.addEventListener("change", renderTriggers);
+
+// ---------- CSV ----------
+const CSV_COLS = ["date", "saved_at", ...FIELDS];
+const csvCell = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+
+function toCsv(all) {
+  const lines = [[...CSV_COLS, "caffeine_mg", "symptom_total"].join(",")];
+  for (const d of Object.keys(all).sort()) {
+    const e = { date: d, ...all[d] };
+    lines.push([...CSV_COLS.map((c) => csvCell(e[c])), caffMg(e), symptomTotal(e)].join(","));
+  }
+  return lines.join("\n") + "\n";
+}
+
+function parseCsv(text) {
+  const [header, ...rows] = text.trim().split(/\r?\n/).map((l) => l.split(","));
+  return rows.map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ""])));
+}
+
+document.getElementById("export").addEventListener("click", async () => {
+  const name = `lpr-log-${logicalToday()}.csv`;
+  const file = new File([toCsv(loadAll())], name, { type: "text/csv" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById("import").addEventListener("click", () => document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change", async (ev) => {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const all = loadAll();
+  let n = 0;
+  for (const r of parseCsv(await f.text())) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) continue;
+    const e = blank();
+    for (const k of FIELDS) e[k] = Number(r[k]) || 0;
+    e.saved_at = r.saved_at || new Date().toISOString();
+    all[r.date] = e;
+    n++;
+  }
+  saveAll(all);
+  document.getElementById("backupStatus").textContent = `Imported ${n} days.`;
+  ev.target.value = "";
+  renderTable(); renderTriggers();
+});
+
+// ---------- tabs ----------
+function show(view) {
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.view === view)));
+  document.getElementById("view-today").hidden = view !== "today";
+  document.getElementById("view-analytics").hidden = view !== "analytics";
+  if (view === "analytics") { renderTable(); renderTriggers(); }
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => show(b.dataset.view)));
+
+// Re-open on today's date when the app comes back to the foreground on a new day.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && !document.getElementById("view-today").hidden) loadDay(logicalToday());
+});
+
+loadDay(logicalToday());
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
