@@ -1,5 +1,5 @@
 // Bump the version when any cached file changes so the phone picks up the update.
-const CACHE = "reflux-tracker-v5";
+const CACHE = "reflux-tracker-v6";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
